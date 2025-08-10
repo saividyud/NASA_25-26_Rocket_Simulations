@@ -1,0 +1,1 @@
+This repository contains testing simulations of NASA SLI rockets. These simulations are performed in Python using the `rocketpy` library and are compared against the results of `OpenRocket` simulations.
