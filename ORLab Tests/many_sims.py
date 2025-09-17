@@ -19,14 +19,14 @@ plt.rcParams['ytick.labelsize'] = 12
 plt.rcParams['legend.fontsize'] = 12
 plt.rcParams['mathtext.fontset'] = 'cm'
 
-num = 1000
+num = 100
 data = []
 events = []
 launch_rod_angles = []
 
 print()
 print('=' * 100)
-with ol.OpenRocketInstance('./ORLab Tests/OpenRocket-23.09.jar') as instance:
+with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     # Defining ORLab helper
     orl = ol.Helper(instance)
     print('=' * 100)
@@ -71,6 +71,7 @@ with ol.OpenRocketInstance('./ORLab Tests/OpenRocket-23.09.jar') as instance:
         events.append(orl.get_events(sim))
 
     print('-' * 20)
+    print()
 
 # Leave OpenRocketInstance context before showing plot in order to shutdown JVM first
 print('=' * 100)

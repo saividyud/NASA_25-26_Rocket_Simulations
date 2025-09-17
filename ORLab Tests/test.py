@@ -32,26 +32,23 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     # Extracting data about the rocket from the simulation
     rocket = sim.getRocket()
 
-    orl.run_simulation(sim)
+    # Printing all children of the rocket
+    children = rocket.getAllChildren()
+    for i, child in enumerate(children):
+        print(f"{i}. {child}: {type(child)}")
 
-    data = orl.get_timeseries(
-        sim, [
-            ol.FlightDataType.TYPE_TIME, ol.FlightDataType.TYPE_ALTITUDE, ol.FlightDataType.TYPE_VELOCITY_Z
-        ]
-    )
+    print('-' * 20)
+    print()
+    child_index = 1
 
-    index_at = lambda t: (np.abs(data[ol.FlightDataType.TYPE_TIME] - t)).argmin()
-
-    events = orl.get_events(sim)
-    apogee_time = events[ol.FlightEvent.APOGEE]
-    apogee_index = index_at(apogee_time)
-    apogee_height = data[ol.FlightDataType.TYPE_ALTITUDE][apogee_index]
-
-    print(apogee_index, apogee_time, apogee_height)
+    current_child = children[child_index]
+    print(current_child)
+    for attr in dir(current_child):
+        if not attr.startswith('_'):
+            print(f'\t{attr}')
 
     print('-' * 20)
     print()
 
-# Leave OpenRocketInstance context before showing plot in order to shutdown JVM first
 print('=' * 100)
 print('Shut down JVM')
