@@ -5,13 +5,21 @@ import numpy as np
 import warnings
 import csv
 import pandas as pd
+import pickle as pkl
 
 import orlab as ol
+
+def pickler(obj, path):
+    with open(path, 'wb') as file:
+        pkl.dump(obj, file)
 
 df = pd.read_csv('./Fin Testing/monte_carlo_parameters.csv')
 
 samples = len(df['Wind Speed'])
 print(f'Number of samples: {samples}')
+
+data = []
+events = []
 
 print()
 print('=' * 100)
@@ -22,7 +30,7 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     print()
 
     # Loading the OpenRocket file
-    doc = orl.load_doc('./Fin Testing/NASA 25-26 Proposal rocket (Trap).ork')
+    doc = orl.load_doc('./Fin Testing/NASA 25-26 Proposal Rocket (Swept Trap).ork')
 
     # Getting the Nth simulation
     sim = doc.getSimulation(0)
@@ -40,7 +48,64 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     for i in range(samples):
         print(f'Running simulation {i + 1}/{samples}')
 
-        opts.setLaunchRodAngle(np.radians(df['Launch Rod Angle'][i]))
+        # Reading in parameters
+        wind_speed = df['Wind Speed'][i]
+        wind_direction = df['Wind Direction'][i]
+        air_temperature = df['Air Temperature'][i]
+        air_pressure = df['Air Pressure'][i]
+
+        nose_cone_mass = df['Nose Cone Mass'][i]
+        nose_cone_shape_parameter = df['Nose Cone Shape Parameter'][i]
+        nose_cone_length = df['Nose Cone Length'][i]
+
+        forward_body_tube_mass = df['Forward Body Tube Mass'][i]
+        middle_body_tube_mass = df['Middle Body Tube Mass'][i]
+        aft_body_tube_mass = df['Aft Body Tube Mass'][i]
+
+        forward_body_tube_length = df['Forward Body Tube Length'][i]
+        middle_body_tube_length = df['Middle Body Tube Length'][i]
+        aft_body_tube_length = df['Aft Body Tube Length'][i]
+
+        forward_body_tube_outer_diameter = df['Forward Body Tube Outer Diameter'][i]
+        middle_body_tube_outer_diameter = df['Middle Body Tube Outer Diameter'][i]
+        aft_body_tube_outer_diameter = df['Aft Body Tube Outer Diameter'][i]
+
+        launch_rod_angle = df['Launch Rod Cant'][i]
+        launch_rod_direction = df['Launch Rod Direction'][i]
+
+        # Changing simulation parameters
+        opts.setWindSpeedAverage(wind_speed)
+        opts.setWindSpeedDeviation(0)
+        opts.setWindDirection(np.radians(wind_direction))
+        opts.setLaunchTemperature(air_temperature)
+        opts.setLaunchPressure(air_pressure)
+
+        nose_cone = orl.get_component_named(rocket, 'NASA Nose Cone')
+        nose_cone.setMassOverridden(True)
+        nose_cone.setOverrideMass(nose_cone_mass)
+        nose_cone.setShapeParameter(nose_cone_shape_parameter)
+        nose_cone.setLength(nose_cone_length)
+
+        forward_body_tube = orl.get_component_named(rocket, 'NASA Forward Body')
+        forward_body_tube.setMassOverridden(True)
+        forward_body_tube.setOverrideMass(forward_body_tube_mass)
+        forward_body_tube.setLength(forward_body_tube_length)
+        forward_body_tube.setOuterRadius(forward_body_tube_outer_diameter/2)
+
+        middle_body_tube = orl.get_component_named(rocket, 'NASA Middle Body')
+        middle_body_tube.setMassOverridden(True)
+        middle_body_tube.setOverrideMass(middle_body_tube_mass)
+        middle_body_tube.setLength(middle_body_tube_length)
+        middle_body_tube.setOuterRadius(middle_body_tube_outer_diameter/2)
+
+        aft_body_tube = orl.get_component_named(rocket, 'NASA Aft Body')
+        aft_body_tube.setMassOverridden(True)
+        aft_body_tube.setOverrideMass(aft_body_tube_mass)
+        aft_body_tube.setLength(aft_body_tube_length)
+        aft_body_tube.setOuterRadius(aft_body_tube_outer_diameter/2)
+
+        opts.setLaunchRodAngle(np.radians(launch_rod_angle))
+        opts.setLaunchRodDirection(np.radians(launch_rod_direction))
 
         # Running the simulation
         orl.run_simulation(sim)
@@ -49,7 +114,7 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
         data.append(
             orl.get_timeseries(
                 sim, [
-                    ol.FlightDataType.TYPE_TIME, ol.FlightDataType.TYPE_ALTITUDE, ol.FlightDataType.TYPE_VELOCITY_Z
+                    ol.FlightDataType.TYPE_TIME, ol.FlightDataType.TYPE_ALTITUDE, ol.FlightDataType.TYPE_VELOCITY_TOTAL, ol.FlightDataType.TYPE_ACCELERATION_TOTAL, ol.FlightDataType.TYPE_STABILITY
                 ]
             )
         )
@@ -64,45 +129,5 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
 print('=' * 100)
 print('Shut down JVM')
 
-apogees = []
-for i in range(num):
-    apogee_index = (np.abs(data[i][ol.FlightDataType.TYPE_TIME] - events[i][ol.FlightEvent.APOGEE])).argmin()
-    apogees.append(data[i][ol.FlightDataType.TYPE_ALTITUDE][apogee_index])
-
-# Create a figure with two rows of subplots
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-
-# Plot histogram of launch rod angles
-ax1.hist(launch_rod_angles, bins=15, color='skyblue', edgecolor='black')
-ax1.set_title('Histogram of Launch Rod Angles')
-ax1.set_xlabel('Launch Rod Angle (degrees)')
-ax1.set_ylabel('Frequency')
-
-# Plot histogram of apogee heights
-ax2.hist(apogees, bins=15, color='salmon', edgecolor='black')
-ax2.set_title('Histogram of Apogee Heights')
-ax2.set_xlabel('Apogee Height (meters)')
-ax2.set_ylabel('Frequency')
-
-plt.tight_layout()
-
-# fig = plt.figure(figsize=(10, 8))
-# ax = fig.add_subplot()
-
-# fig.suptitle('Apogee Height vs Launch Rod Angle')
-
-# ax.set_xlabel('Launch Rod Angle (degrees)')
-# ax.set_ylabel('Apogee Height (meters)')
-
-# ax.scatter(launch_rod_angles, apogees, marker='o')
-
-# ax.grid(True)
-
-plt.show()
-
-# for i in range(num):
-#     print(f'Launch Rod Angle: {launch_rod_angles[i]} degrees')
-#     print(f'Apogee Time: {events[i][ol.FlightEvent.APOGEE]} seconds')
-#     apogee_index = (np.abs(data[i][ol.FlightDataType.TYPE_TIME] - events[i][ol.FlightEvent.APOGEE])).argmin()
-#     print(f'Apogee Height: {data[i][ol.FlightDataType.TYPE_ALTITUDE][apogee_index]} meters')
-#     print('-' * 20)
+pickler(data, './Fin Testing/tapswept_monte_carlo_data.pkl')
+pickler(events, './Fin Testing/tapswept_monte_carlo_events.pkl')
