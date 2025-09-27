@@ -6,6 +6,7 @@ import warnings
 import csv
 import pandas as pd
 import pickle as pkl
+import argparse
 
 import orlab as ol
 
@@ -13,7 +14,30 @@ def pickler(obj, path):
     with open(path, 'wb') as file:
         pkl.dump(obj, file)
 
-df = pd.read_csv('./Fin Testing/monte_carlo_parameters.csv')
+parser = argparse.ArgumentParser()
+parser.add_argument('--fin_shape', type=str, default=None, help='Specify a fin shape to run (Trapezoidal, Elliptical, Swept, Tapered Swept). If not specified, will fail.')
+args = parser.parse_args()
+
+fin_shapes = ['Trapezoidal', 'Elliptical', 'Swept', 'Tapered Swept']
+
+if args.fin_shape:
+    if args.fin_shape not in fin_shapes:
+        raise ValueError(f'Invalid fin shape specified. Must be one of: {fin_shapes}')
+    else:
+        fin_shape = args.fin_shape
+
+print(f'\n========================RUNNING FIN SHAPE: {fin_shape}========================\n')
+
+if fin_shape == 'Trapezoidal':
+    name = 'trap'
+elif fin_shape == 'Elliptical':
+    name = 'ellip'
+elif fin_shape == 'Swept':
+    name = 'swept'
+elif fin_shape == 'Tapered Swept':
+    name = 'tapered_swept'
+
+df = pd.read_csv(f'./Fin Testing/Data Files/{fin_shape}/{name}_monte_carlo_parameters.csv')
 
 samples = len(df['Wind Speed'])
 print(f'Number of samples: {samples}')
@@ -30,7 +54,7 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     print()
 
     # Loading the OpenRocket file
-    doc = orl.load_doc('./Fin Testing/NASA 25-26 Proposal Rocket (Swept Trap).ork')
+    doc = orl.load_doc(f'./Fin Testing/OpenRocket Files/NASA 25-26 Proposal Rocket ({fin_shape}).ork')
 
     # Getting the Nth simulation
     sim = doc.getSimulation(0)
@@ -129,5 +153,5 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
 print('=' * 100)
 print('Shut down JVM')
 
-pickler(data, './Fin Testing/tapswept_monte_carlo_data.pkl')
-pickler(events, './Fin Testing/tapswept_monte_carlo_events.pkl')
+pickler(data, f'./Fin Testing/Data Files/{fin_shape}/{name}_monte_carlo_data.pkl')
+pickler(events, f'./Fin Testing/Data Files/{fin_shape}/{name}_monte_carlo_events.pkl')
