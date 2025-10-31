@@ -9,6 +9,7 @@ import pickle as pkl
 import argparse
 
 import orlab as ol
+from tqdm import tqdm
 
 def pickler(obj, path):
     with open(path, 'wb') as file:
@@ -16,9 +17,10 @@ def pickler(obj, path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--fin_shape', type=str, default=None, help='Specify a fin shape to run (Trapezoidal, Elliptical, Swept, Tapered Swept). If not specified, will fail.')
+parser.add_argument('--wind_speed', type=float, default=None, help='Specify a wind speed to run (in mph).')
 args = parser.parse_args()
 
-fin_shapes = ['Trapezoidal', 'Elliptical', 'Swept', 'Tapered Swept']
+fin_shapes = ['Swept', 'Tapered Swept', 'Trapezoidal', 'Elliptical']
 
 if args.fin_shape:
     if args.fin_shape not in fin_shapes:
@@ -26,18 +28,20 @@ if args.fin_shape:
     else:
         fin_shape = args.fin_shape
 
-print(f'\n========================RUNNING FIN SHAPE: {fin_shape}========================\n')
+wind_speed_input = str(f'{args.wind_speed:.0f}')
+
+print(f'\n===================RUNNING FIN SHAPE: {fin_shape}, WIND SPEED: {wind_speed_input}===================\n')
 
 if fin_shape == 'Trapezoidal':
-    name = 'trap'
+    name = 'trapezoidal'
 elif fin_shape == 'Elliptical':
-    name = 'ellip'
+    name = 'elliptical'
 elif fin_shape == 'Swept':
     name = 'swept'
 elif fin_shape == 'Tapered Swept':
     name = 'tapered_swept'
 
-df = pd.read_csv(f'./Fin Testing/Data Files/{fin_shape}/{name}_monte_carlo_parameters.csv')
+df = pd.read_csv(f'./Fin Testing/Data Files/{fin_shape}/{wind_speed_input}_{name}_monte_carlo_parameters_2.csv')
 
 samples = len(df['Wind Speed'])
 print(f'Number of samples: {samples}')
@@ -54,9 +58,9 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     print()
 
     # Loading the OpenRocket file
-    doc = orl.load_doc(f'./Fin Testing/OpenRocket Files/NASA 25-26 Proposal Rocket ({fin_shape}).ork')
+    doc = orl.load_doc(f'./Fin Testing/OpenRocket Files/NASA 25-26 PDR Rocket ({fin_shape}).ork')
 
-    # Getting the Nth simulation
+    # Getting the 1st simulation
     sim = doc.getSimulation(0)
     
     print(sim.getName())
@@ -69,8 +73,8 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     rocket = sim.getRocket()
 
     # Running multiple simulations
-    for i in range(samples):
-        print(f'Running simulation {i + 1}/{samples}')
+    for i in tqdm(range(samples)):
+        # print(f'Running simulation {i + 1}/{samples}')
 
         # Reading in parameters
         wind_speed = df['Wind Speed'][i]
@@ -79,13 +83,12 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
         air_pressure = df['Air Pressure'][i]
 
         nose_cone_mass = df['Nose Cone Mass'][i]
-        nose_cone_shape_parameter = df['Nose Cone Shape Parameter'][i]
-        nose_cone_length = df['Nose Cone Length'][i]
-
         forward_body_tube_mass = df['Forward Body Tube Mass'][i]
         middle_body_tube_mass = df['Middle Body Tube Mass'][i]
         aft_body_tube_mass = df['Aft Body Tube Mass'][i]
+        fin_mass = df['Fin Mass'][i]
 
+        nose_cone_length = df['Nose Cone Length'][i]
         forward_body_tube_length = df['Forward Body Tube Length'][i]
         middle_body_tube_length = df['Middle Body Tube Length'][i]
         aft_body_tube_length = df['Aft Body Tube Length'][i]
@@ -107,7 +110,6 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
         nose_cone = orl.get_component_named(rocket, 'NASA Nose Cone')
         nose_cone.setMassOverridden(True)
         nose_cone.setOverrideMass(nose_cone_mass)
-        nose_cone.setShapeParameter(nose_cone_shape_parameter)
         nose_cone.setLength(nose_cone_length)
 
         forward_body_tube = orl.get_component_named(rocket, 'NASA Forward Body')
@@ -128,6 +130,10 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
         aft_body_tube.setLength(aft_body_tube_length)
         aft_body_tube.setOuterRadius(aft_body_tube_outer_diameter/2)
 
+        fins = orl.get_component_named(rocket, f'NASA {fin_shape} Fins')
+        fins.setMassOverridden(True)
+        fins.setOverrideMass(fin_mass)
+
         opts.setLaunchRodAngle(np.radians(launch_rod_angle))
         opts.setLaunchRodDirection(np.radians(launch_rod_direction))
 
@@ -138,7 +144,13 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
         data.append(
             orl.get_timeseries(
                 sim, [
-                    ol.FlightDataType.TYPE_TIME, ol.FlightDataType.TYPE_ALTITUDE, ol.FlightDataType.TYPE_VELOCITY_TOTAL, ol.FlightDataType.TYPE_ACCELERATION_TOTAL, ol.FlightDataType.TYPE_STABILITY
+                    ol.FlightDataType.TYPE_TIME, 
+                    ol.FlightDataType.TYPE_ALTITUDE, 
+                    ol.FlightDataType.TYPE_VELOCITY_TOTAL, 
+                    ol.FlightDataType.TYPE_ACCELERATION_TOTAL, 
+                    ol.FlightDataType.TYPE_STABILITY,
+                    ol.FlightDataType.TYPE_POSITION_X,
+                    ol.FlightDataType.TYPE_POSITION_Y,
                 ]
             )
         )
@@ -153,5 +165,5 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
 print('=' * 100)
 print('Shut down JVM')
 
-pickler(data, f'./Fin Testing/Data Files/{fin_shape}/{name}_monte_carlo_data.pkl')
-pickler(events, f'./Fin Testing/Data Files/{fin_shape}/{name}_monte_carlo_events.pkl')
+pickler(data, f'./Fin Testing/Data Files/{fin_shape}/{wind_speed_input}_{name}_monte_carlo_data.pkl')
+pickler(events, f'./Fin Testing/Data Files/{fin_shape}/{wind_speed_input}_{name}_monte_carlo_events.pkl')

@@ -17,7 +17,7 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     print()
 
     # Loading the OpenRocket file
-    doc = orl.load_doc('./Fin Testing/NASA 25-26 Proposal Rocket (Trap).ork')
+    doc = orl.load_doc('./Fin Testing/OpenRocket Files/NASA 25-26 PDR Rocket (Swept).ork')
 
     # Getting the Nth simulation
     sim = doc.getSimulation(0)
@@ -31,8 +31,35 @@ with ol.OpenRocketInstance('./OpenRocket-23.09.jar') as instance:
     # Extracting data about the rocket from the simulation
     rocket = sim.getRocket()
 
+    # Changing simulation parameters
+    opts.setWindSpeedAverage(0)
+    opts.setWindSpeedDeviation(0)
+    opts.setWindDirection(np.radians(0))
+    opts.setLaunchTemperature(296)  # Kelvin
+    opts.setLaunchPressure(101325)  # Pa
+
+    nose_cone = orl.get_component_named(rocket, 'NASA Nose Cone')
+    nose_cone.setMassOverridden(True)
+    nose_cone.setOverrideMass(0.9)
+    nose_cone.setLength(0.7)
+
     # forward_body_tube = orl.get_component_named(rocket, 'NASA Forward Body')
-    # print(dir(forward_body_tube))
+    # forward_body_tube.setMassOverridden(True)
+    # forward_body_tube.setOverrideMass(forward_body_tube_mass)
+    # forward_body_tube.setLength(forward_body_tube_length)
+    # forward_body_tube.setOuterRadius(forward_body_tube_outer_diameter/2)
+
+    # middle_body_tube = orl.get_component_named(rocket, 'NASA Middle Body')
+    # middle_body_tube.setMassOverridden(True)
+    # middle_body_tube.setOverrideMass(middle_body_tube_mass)
+    # middle_body_tube.setLength(middle_body_tube_length)
+    # middle_body_tube.setOuterRadius(middle_body_tube_outer_diameter/2)
+
+    # aft_body_tube = orl.get_component_named(rocket, 'NASA Aft Body')
+    # aft_body_tube.setMassOverridden(True)
+    # aft_body_tube.setOverrideMass(aft_body_tube_mass)
+    # aft_body_tube.setLength(aft_body_tube_length)
+    # aft_body_tube.setOuterRadius(aft_body_tube_outer_diameter/2)
 
     # Run the simulation
     orl.run_simulation(sim)
@@ -56,4 +83,4 @@ apogee_index = index_at(apogee_time)
 apogee_height = data[ol.FlightDataType.TYPE_ALTITUDE][apogee_index]
 
 print(f'Apogee time: {apogee_time} s')
-print(f'Apogee height: {apogee_height} m')
+print(f'Apogee height: {apogee_height * 3.28084} ft')
